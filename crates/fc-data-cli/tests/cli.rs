@@ -55,6 +55,17 @@ fn rejects_bond_for_securities_before_loading_configuration() {
 }
 
 #[test]
+fn rejects_bond_for_securities_details_before_loading_configuration() {
+    let mut command = cargo_bin_cmd!("fc-data");
+
+    command
+        .args(["securities-details", "--market", "bond"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("possible values"));
+}
+
+#[test]
 fn rejects_upcom_for_index_list_before_loading_configuration() {
     let mut command = cargo_bin_cmd!("fc-data");
 

@@ -1,6 +1,9 @@
 //! Authenticated SSI Market Data HTTP client.
 
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::{
+    sync::Arc,
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+};
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use reqwest::header::{ACCEPT, HeaderMap, HeaderValue};
@@ -28,7 +31,7 @@ pub struct MarketDataClient {
 
 #[derive(Debug)]
 struct CachedAccessToken {
-    token: AccessToken,
+    token: Arc<AccessToken>,
     refresh_at: Instant,
 }
 
@@ -154,19 +157,19 @@ impl MarketDataClient {
         Ok(response)
     }
 
-    pub(crate) async fn access_token(&self) -> Result<AccessToken, ClientError> {
+    pub(crate) async fn access_token(&self) -> Result<Arc<AccessToken>, ClientError> {
         let mut cached = self.token.lock().await;
         if let Some(token) = cached
             .as_ref()
             .filter(|token| Instant::now() < token.refresh_at)
         {
-            return Ok(token.token.clone());
+            return Ok(Arc::clone(&token.token));
         }
 
-        let token = self.request_access_token().await?;
+        let token = Arc::new(self.request_access_token().await?);
         *cached = Some(CachedAccessToken {
             refresh_at: token_refresh_at(token.expose()),
-            token: token.clone(),
+            token: Arc::clone(&token),
         });
         drop(cached);
         Ok(token)

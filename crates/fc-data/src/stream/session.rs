@@ -9,7 +9,7 @@ use super::{
     channel::Channel,
     error::StreamError,
     message::StreamMessage,
-    protocol::{ProtocolError, ServerEvent, server_events, switch_channels_frame},
+    protocol::{ProtocolError, ServerEvent, server_events, switch_channels_text},
 };
 
 type Socket = WebSocketStream<MaybeTlsStream<TcpStream>>;
@@ -78,11 +78,8 @@ impl Subscription {
             .next_invocation_id
             .checked_add(1)
             .ok_or(StreamError::InvocationOverflow)?;
-        let send = self.socket.send(Message::Text(
-            switch_channels_frame(channel, invocation_id)
-                .to_string()
-                .into(),
-        ));
+        let frame = switch_channels_text(channel, invocation_id).map_err(ProtocolError::from)?;
+        let send = self.socket.send(Message::Text(frame.into()));
         tokio::time::timeout(self.control_timeout, send)
             .await
             .map_err(|_| StreamError::TimedOut(self.control_timeout))??;

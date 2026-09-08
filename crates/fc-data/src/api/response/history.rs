@@ -96,6 +96,12 @@ pub struct DailyIndex {
     pub trading_session: String,
     /// Index type when supplied.
     pub type_index: Option<String>,
+    /// Market when supplied.
+    #[serde(default)]
+    pub market: Option<String>,
+    /// Exchange when supplied.
+    #[serde(default)]
+    pub exchange: Option<String>,
 }
 
 /// Daily stock price market record.

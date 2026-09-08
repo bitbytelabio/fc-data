@@ -18,8 +18,8 @@ use super::{
     error::StreamError,
     message::StreamMessage,
     protocol::{
-        NegotiateResponse, connect_url, connection_data, negotiate_url, start_url,
-        switch_channels_frame,
+        NegotiateResponse, ProtocolError, connect_url, connection_data, negotiate_url, start_url,
+        switch_channels_text,
     },
     session::{Subscription, validate_channel},
 };
@@ -219,11 +219,8 @@ impl<'a> StreamClient<'a> {
             return Err(StreamError::UnexpectedStart);
         }
 
-        socket
-            .send(Message::Text(
-                switch_channels_frame(initial_channel, 1).to_string().into(),
-            ))
-            .await?;
+        let frame = switch_channels_text(initial_channel, 1).map_err(ProtocolError::from)?;
+        socket.send(Message::Text(frame.into())).await?;
         Ok(Subscription::new(socket, control_timeout))
     }
 }

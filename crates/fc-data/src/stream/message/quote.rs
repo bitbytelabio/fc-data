@@ -26,14 +26,15 @@ pub struct Quote {
     pub bid_prices: [f64; 10],
     /// Bid volumes from level 1 through 10.
     pub bid_volumes: [f64; 10],
-    /// Trading session code.
-    pub trading_session: String,
+    /// Trading session code when supplied.
+    pub trading_session: Option<String>,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "PascalCase")]
 struct QuoteWire {
     trading_date: String,
+    #[serde(alias = "TradingTime")]
     time: String,
     exchange: String,
     symbol: String,
@@ -51,17 +52,28 @@ struct QuoteWire {
     ask_price6: f64,
     ask_price7: f64,
     ask_price8: f64,
+    #[serde(alias = "AskPrie9")]
     ask_price9: f64,
     ask_price10: f64,
+    #[serde(deserialize_with = "super::de::deserialize_finite_f64")]
     ask_vol1: f64,
+    #[serde(deserialize_with = "super::de::deserialize_finite_f64")]
     ask_vol2: f64,
+    #[serde(deserialize_with = "super::de::deserialize_finite_f64")]
     ask_vol3: f64,
+    #[serde(deserialize_with = "super::de::deserialize_finite_f64")]
     ask_vol4: f64,
+    #[serde(deserialize_with = "super::de::deserialize_finite_f64")]
     ask_vol5: f64,
+    #[serde(deserialize_with = "super::de::deserialize_finite_f64")]
     ask_vol6: f64,
+    #[serde(deserialize_with = "super::de::deserialize_finite_f64")]
     ask_vol7: f64,
+    #[serde(deserialize_with = "super::de::deserialize_finite_f64")]
     ask_vol8: f64,
+    #[serde(deserialize_with = "super::de::deserialize_finite_f64")]
     ask_vol9: f64,
+    #[serde(deserialize_with = "super::de::deserialize_finite_f64")]
     ask_vol10: f64,
     bid_price1: f64,
     bid_price2: f64,
@@ -73,17 +85,28 @@ struct QuoteWire {
     bid_price8: f64,
     bid_price9: f64,
     bid_price10: f64,
+    #[serde(deserialize_with = "super::de::deserialize_finite_f64")]
     bid_vol1: f64,
+    #[serde(deserialize_with = "super::de::deserialize_finite_f64")]
     bid_vol2: f64,
+    #[serde(deserialize_with = "super::de::deserialize_finite_f64")]
     bid_vol3: f64,
+    #[serde(deserialize_with = "super::de::deserialize_finite_f64")]
     bid_vol4: f64,
+    #[serde(deserialize_with = "super::de::deserialize_finite_f64")]
     bid_vol5: f64,
+    #[serde(deserialize_with = "super::de::deserialize_finite_f64")]
     bid_vol6: f64,
+    #[serde(deserialize_with = "super::de::deserialize_finite_f64")]
     bid_vol7: f64,
+    #[serde(deserialize_with = "super::de::deserialize_finite_f64")]
     bid_vol8: f64,
+    #[serde(deserialize_with = "super::de::deserialize_finite_f64")]
     bid_vol9: f64,
+    #[serde(deserialize_with = "super::de::deserialize_finite_f64")]
     bid_vol10: f64,
-    trading_session: String,
+    #[serde(default)]
+    trading_session: Option<String>,
 }
 
 impl From<QuoteWire> for Quote {

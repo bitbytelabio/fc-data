@@ -7,10 +7,11 @@ use ssi_fc_data::api::{
     ApiRequest, DailyIndex, DailyIndexInput, DailyIndexQuery, DailyIndexResponse, DailyOhlc,
     DailyOhlcInput, DailyOhlcQuery, DailyOhlcResponse, DailyStockPrice, DailyStockPriceInput,
     DailyStockPriceQuery, DailyStockPriceResponse, Index, IndexComponent, IndexComponents,
-    IndexComponentsQuery, IndexComponentsResponse, IndexListQuery, IndexListResponse, IntradayOhlc,
-    IntradayOhlcParams, IntradayOhlcQuery, IntradayOhlcResponse, MarketDataClient, PageQuery,
-    RestRequest, SecuritiesDetails, SecuritiesDetailsQuery, SecuritiesDetailsResponse,
-    SecuritiesQuery, SecuritiesResponse, Security, SsiDate,
+    IndexComponentsQuery, IndexComponentsResponse, IndexExchange, IndexListQuery,
+    IndexListResponse, IntradayOhlc, IntradayOhlcParams, IntradayOhlcQuery, IntradayOhlcResponse,
+    Market, MarketDataClient, OrderDirection, PageQuery, RestRequest, SecuritiesDetails,
+    SecuritiesDetailsQuery, SecuritiesDetailsResponse, SecuritiesMarket, SecuritiesQuery,
+    SecuritiesResponse, Security, SsiDate,
 };
 use ssi_fc_data::config::{Settings, SettingsInput, TransportPolicy};
 use url::Url;
@@ -36,43 +37,49 @@ fn rejects_page_size_500_for_securities_endpoints() {
 }
 
 #[test]
-fn rejects_bond_for_the_securities_market() {
-    // Given
-    let page = PageQuery::new(1, 100).expect("valid page");
+fn serializes_exact_wire_values_for_request_domain_enums() {
+    let page = PageQuery::new(1, 10).expect("valid page");
+    let base = Url::parse("https://fc-data.ssi.com.vn/").expect("valid fixture URL");
 
-    // When
-    let result = SecuritiesQuery::new(Some("BOND".to_owned()), page);
+    let securities = SecuritiesQuery::new(Some(SecuritiesMarket::Der), page).expect("valid query");
+    let url = ApiRequest::Securities(securities)
+        .url(&base)
+        .expect("valid URL");
+    assert!(url.query().is_some_and(|q| q.contains("market=DER")));
 
-    // Then
-    assert!(result.is_err());
-}
+    let index_list = IndexListQuery::new(Some(IndexExchange::Hnx), page);
+    let url = ApiRequest::IndexList(index_list)
+        .url(&base)
+        .expect("valid URL");
+    assert!(url.query().is_some_and(|q| q.contains("exchange=HNX")));
 
-#[test]
-fn rejects_bond_for_the_securities_details_market() {
-    // Given
-    let page = PageQuery::new(1, 100).expect("valid page");
+    let daily_stock = DailyStockPriceQuery::parse(DailyStockPriceInput {
+        symbol: None,
+        from_date: "01/01/2026".to_owned(),
+        to_date: "02/01/2026".to_owned(),
+        page,
+        market: Some(Market::Bond),
+    })
+    .expect("valid query");
+    let url = ApiRequest::DailyStockPrice(daily_stock)
+        .url(&base)
+        .expect("valid URL");
+    assert!(url.query().is_some_and(|q| q.contains("market=BOND")));
 
-    // When
-    let result = SecuritiesDetailsQuery::new(Some("BOND".to_owned()), None, page);
-
-    // Then
-    assert!(result.is_err());
-}
-
-#[test]
-fn accepts_only_hose_and_hnx_for_index_list_exchange() {
-    // Given
-    let page = PageQuery::new(1, 100).expect("valid page");
-
-    // When
-    let hose = IndexListQuery::new(Some("HOSE".to_owned()), page);
-    let hnx = IndexListQuery::new(Some("HNX".to_owned()), page);
-    let upcom = IndexListQuery::new(Some("UPCOM".to_owned()), page);
-
-    // Then
-    assert!(hose.is_ok());
-    assert!(hnx.is_ok());
-    assert!(upcom.is_err());
+    let daily_index = DailyIndexQuery::parse(DailyIndexInput {
+        request_id: "req-1".to_owned(),
+        index_id: "VN30".to_owned(),
+        from_date: "01/01/2026".to_owned(),
+        to_date: "02/01/2026".to_owned(),
+        page,
+        order_by: "TradingDate".to_owned(),
+        order: OrderDirection::Asc,
+    })
+    .expect("valid query");
+    let url = ApiRequest::DailyIndex(daily_index)
+        .url(&base)
+        .expect("valid URL");
+    assert!(url.query().is_some_and(|q| q.contains("order=asc")));
 }
 
 #[test]
@@ -381,6 +388,39 @@ fn deserializes_daily_index_capture_shape() {
     })));
 
     assert_eq!(response.data[0].type_index, None);
+    assert_eq!(response.data[0].market, None);
+    assert_eq!(response.data[0].exchange, None);
+}
+
+#[test]
+fn deserializes_daily_index_with_optional_market_and_exchange() {
+    let response: DailyIndexResponse = decode(envelope(&json!({
+        "Advances": "advances",
+        "Ceilings": "ceilings",
+        "Change": "change",
+        "Declines": "declines",
+        "Floors": "floors",
+        "IndexId": "id",
+        "IndexName": "name",
+        "IndexValue": "value",
+        "NoChanges": "no-changes",
+        "RatioChange": "ratio",
+        "Time": "09:00:00",
+        "TotalDealVal": "deal-value",
+        "TotalDealVol": "deal-volume",
+        "TotalMatchVal": "match-value",
+        "TotalMatchVol": "match-volume",
+        "TotalTrade": "trades",
+        "TotalVal": "total-value",
+        "TotalVol": "total-volume",
+        "TradingDate": "04/05/2020",
+        "TradingSession": "C",
+        "TypeIndex": "Main",
+        "Market": "HOSE",
+        "Exchange": "HOSE"
+    })));
+
+    assert_eq!(response.data[0].exchange.as_deref(), Some("HOSE"));
 }
 
 #[test]
@@ -398,7 +438,7 @@ fn associates_each_typed_request_with_its_capture_payload() {
     let details = SecuritiesDetailsQuery::new(None, None, page).expect("valid details query");
     let components =
         IndexComponentsQuery::new("VN30".to_owned(), page).expect("valid components query");
-    let indexes = IndexListQuery::new(None, page).expect("valid index-list query");
+    let indexes = IndexListQuery::new(None, page);
     let daily_ohlc = daily_ohlc_query(page);
     let intraday = IntradayOhlcQuery::new(IntradayOhlcParams {
         symbol: "SSI".to_owned(),
@@ -501,7 +541,7 @@ fn daily_index_query(page: PageQuery) -> DailyIndexQuery {
         to_date: "02/01/2026".to_owned(),
         page,
         order_by: "TradingDate".to_owned(),
-        order: "desc".to_owned(),
+        order: OrderDirection::Desc,
     })
     .expect("valid daily index query")
 }

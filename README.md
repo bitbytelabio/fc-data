@@ -34,7 +34,7 @@ Execute a typed securities request:
 
 ```rust
 use ssi_fc_data::{
-    api::{MarketDataClient, PageQuery, SecuritiesQuery, SecuritiesResponse},
+    api::{MarketDataClient, PageQuery, SecuritiesMarket, SecuritiesQuery, SecuritiesResponse},
     config::Settings,
 };
 
@@ -42,7 +42,7 @@ use ssi_fc_data::{
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = MarketDataClient::new(Settings::load()?)?;
     let page = PageQuery::new(1, 10)?;
-    let query = SecuritiesQuery::new(Some("HOSE".to_owned()), page)?;
+    let query = SecuritiesQuery::new(Some(SecuritiesMarket::Hose), page)?;
     let response: SecuritiesResponse = client.execute_typed(&query).await?;
     serde_json::to_writer_pretty(std::io::stdout(), &response)?;
     Ok(())

@@ -69,20 +69,45 @@ pub fn switch_channels_frame(channel: &str, invocation_id: u64) -> Value {
     })
 }
 
+#[derive(Serialize)]
+struct SwitchChannelsFrame<'a> {
+    #[serde(rename = "H")]
+    hub: &'a str,
+    #[serde(rename = "M")]
+    method: &'a str,
+    #[serde(rename = "A")]
+    arguments: [&'a str; 1],
+    #[serde(rename = "I")]
+    invocation_id: u64,
+}
+
+pub(super) fn switch_channels_text(
+    channel: &str,
+    invocation_id: u64,
+) -> Result<String, serde_json::Error> {
+    serde_json::to_string(&SwitchChannelsFrame {
+        hub: HUB_NAME,
+        method: "SwitchChannels",
+        arguments: [channel],
+        invocation_id,
+    })
+}
+
 /// Extracts FC Market Data broadcast arguments from a `SignalR` text frame.
 pub fn broadcast_payloads(frame: &str) -> Result<Vec<Value>, serde_json::Error> {
-    Ok(server_events(frame)?
-        .into_iter()
-        .filter_map(|event| match event {
-            ServerEvent::Broadcast(payload) => Some(payload),
-            ServerEvent::HubError(_) => None,
-        })
-        .collect())
+    let events = server_events(frame)?;
+    let mut payloads = Vec::with_capacity(events.len());
+    for event in events {
+        if let ServerEvent::Broadcast(payload) = event {
+            payloads.push(payload);
+        }
+    }
+    Ok(payloads)
 }
 
 pub(super) fn server_events(frame: &str) -> Result<Vec<ServerEvent>, serde_json::Error> {
     let frame: ServerFrame = serde_json::from_str(frame)?;
-    let mut events = Vec::new();
+    let mut events = Vec::with_capacity(frame.messages.len());
     for message in frame.messages {
         if !message.hub.eq_ignore_ascii_case(HUB_NAME) {
             continue;
@@ -191,5 +216,12 @@ mod tests {
             events,
             vec![ServerEvent::HubError(serde_json::json!("channel denied"))]
         );
+    }
+
+    #[test]
+    fn serializes_switch_channels_text_directly_matching_frame() {
+        let text = switch_channels_text("MI:VN30", 1).expect("valid frame serialization");
+        let parsed: Value = serde_json::from_str(&text).expect("valid JSON text");
+        assert_eq!(parsed, switch_channels_frame("MI:VN30", 1));
     }
 }

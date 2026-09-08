@@ -10,9 +10,10 @@ pub use client::{ClientError, MarketDataClient};
 pub use request::{
     ApiRequest, BacktestQuery, DailyIndexInput, DailyIndexOptions, DailyIndexQuery, DailyOhlcInput,
     DailyOhlcQuery, DailyStockPriceInput, DailyStockPriceQuery, IndexComponentsQuery,
-    IndexListQuery, IntradayByTickInput, IntradayByTickQuery, IntradayOhlcInput,
-    IntradayOhlcParams, IntradayOhlcQuery, PageQuery, RequestError, RestRequest,
-    SecuritiesDetailsQuery, SecuritiesQuery, SsiDate, SsiDateError, ValidationError,
+    IndexExchange, IndexListQuery, IntradayByTickInput, IntradayByTickQuery, IntradayOhlcInput,
+    IntradayOhlcParams, IntradayOhlcQuery, Market, OrderDirection, PageQuery, RequestError,
+    RestRequest, SecuritiesDetailsQuery, SecuritiesMarket, SecuritiesQuery, SsiDate, SsiDateError,
+    ValidationError,
 };
 pub use response::{
     DailyIndex, DailyIndexResponse, DailyOhlc, DailyOhlcResponse, DailyStockPrice,

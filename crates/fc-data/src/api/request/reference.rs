@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use super::{PageQuery, ValidationError, validation as validate};
+use super::{IndexExchange, PageQuery, SecuritiesMarket, ValidationError, validation as validate};
 
 pub(super) const SECURITIES_PATH: &str = "api/v2/Market/Securities";
 pub(super) const SECURITIES_DETAILS_PATH: &str = "api/v2/Market/SecuritiesDetails";
@@ -12,15 +12,14 @@ pub(super) const INDEX_LIST_PATH: &str = "api/v2/Market/IndexList";
 #[serde(rename_all = "camelCase")]
 pub struct SecuritiesQuery {
     #[serde(skip_serializing_if = "Option::is_none")]
-    market: Option<String>,
+    market: Option<SecuritiesMarket>,
     #[serde(flatten)]
     page: PageQuery,
 }
 
 impl SecuritiesQuery {
     /// Parses an optional market and endpoint-specific pagination.
-    pub fn new(market: Option<String>, page: PageQuery) -> Result<Self, ValidationError> {
-        validate::securities_market(market.as_deref())?;
+    pub fn new(market: Option<SecuritiesMarket>, page: PageQuery) -> Result<Self, ValidationError> {
         validate::securities_page_size(page.page_size)?;
         Ok(Self { market, page })
     }
@@ -31,7 +30,7 @@ impl SecuritiesQuery {
 #[serde(rename_all = "camelCase")]
 pub struct SecuritiesDetailsQuery {
     #[serde(skip_serializing_if = "Option::is_none")]
-    market: Option<String>,
+    market: Option<SecuritiesMarket>,
     #[serde(skip_serializing_if = "Option::is_none")]
     symbol: Option<String>,
     #[serde(flatten)]
@@ -41,11 +40,10 @@ pub struct SecuritiesDetailsQuery {
 impl SecuritiesDetailsQuery {
     /// Parses optional market and symbol filters with endpoint-specific pagination.
     pub fn new(
-        market: Option<String>,
+        market: Option<SecuritiesMarket>,
         symbol: Option<String>,
         page: PageQuery,
     ) -> Result<Self, ValidationError> {
-        validate::securities_market(market.as_deref())?;
         validate::optional(symbol.as_deref(), "symbol")?;
         validate::securities_page_size(page.page_size)?;
         Ok(Self {
@@ -78,15 +76,15 @@ impl IndexComponentsQuery {
 #[serde(rename_all = "camelCase")]
 pub struct IndexListQuery {
     #[serde(skip_serializing_if = "Option::is_none")]
-    exchange: Option<String>,
+    exchange: Option<IndexExchange>,
     #[serde(flatten)]
     page: PageQuery,
 }
 
 impl IndexListQuery {
-    /// Parses an optional HOSE or HNX exchange with validated pagination.
-    pub fn new(exchange: Option<String>, page: PageQuery) -> Result<Self, ValidationError> {
-        validate::index_exchange(exchange.as_deref())?;
-        Ok(Self { exchange, page })
+    /// Creates an index list query for an optional HOSE or HNX exchange with validated pagination.
+    #[must_use]
+    pub const fn new(exchange: Option<IndexExchange>, page: PageQuery) -> Self {
+        Self { exchange, page }
     }
 }

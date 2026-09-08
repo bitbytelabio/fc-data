@@ -5,7 +5,7 @@ use serde_json::{Map, Number, Value, json};
 use ssi_fc_data::api::{
     ApiRequest, DailyIndexInput, DailyIndexOptions, DailyIndexQuery, IntradayByTick,
     IntradayByTickInput, IntradayByTickQuery, IntradayByTickResponse, IntradayOhlcInput,
-    IntradayOhlcQuery, MarketDataClient, PageQuery, RestRequest,
+    IntradayOhlcQuery, MarketDataClient, OrderDirection, PageQuery, RestRequest,
 };
 use ssi_fc_data::config::{Settings, SettingsInput, TransportPolicy};
 use url::Url;
@@ -80,7 +80,7 @@ fn serializes_daily_index_ascending_with_lowercase_key_and_value() {
             to_date: "14/08/2026".to_owned(),
             page: PageQuery::new(1, 10).expect("valid page"),
             order_by: "TradingDate".to_owned(),
-            order: "asc".to_owned(),
+            order: OrderDirection::Asc,
         },
         ascending: true,
     })

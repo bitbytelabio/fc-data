@@ -19,6 +19,9 @@ pub enum ChannelError {
     /// A symbol or index selector was empty.
     #[error("channel selectors must not be empty")]
     Empty,
+    /// `ALL` is a wildcard channel selector, not a valid subject symbol.
+    #[error("`ALL` must be selected with `ChannelSelector::all()`, not combined as a symbol")]
+    AllMisuse,
 }
 
 impl ChannelSelector {
@@ -33,14 +36,28 @@ impl ChannelSelector {
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
     {
-        let values = values
-            .into_iter()
-            .map(|value| value.as_ref().trim().to_owned())
-            .collect::<Vec<_>>();
-        if values.is_empty() || values.iter().any(String::is_empty) {
+        let mut values = values.into_iter();
+        let mut joined = String::new();
+
+        for value in values.by_ref() {
+            let trimmed = value.as_ref().trim();
+            if trimmed.is_empty() {
+                return Err(ChannelError::Empty);
+            }
+            if trimmed.eq_ignore_ascii_case("ALL") {
+                return Err(ChannelError::AllMisuse);
+            }
+            if !joined.is_empty() {
+                joined.push('-');
+            }
+            joined.push_str(trimmed);
+        }
+
+        if joined.is_empty() {
             return Err(ChannelError::Empty);
         }
-        Ok(Self(values.join("-")))
+
+        Ok(Self(joined))
     }
 }
 
@@ -90,7 +107,11 @@ impl Channel {
     }
 
     fn typed(prefix: &str, selector: &ChannelSelector) -> Self {
-        Self(format!("{prefix}:{}", selector.0))
+        let mut rendered = String::with_capacity(prefix.len() + 1 + selector.0.len());
+        rendered.push_str(prefix);
+        rendered.push(':');
+        rendered.push_str(&selector.0);
+        Self(rendered)
     }
 }
 

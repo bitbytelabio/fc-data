@@ -17,12 +17,6 @@ pub enum ValidationError {
     /// A required request field was empty.
     #[error("required request field {0} must not be empty")]
     Missing(&'static str),
-    /// A market code was not accepted by SSI.
-    #[error("unsupported SSI market {0}")]
-    InvalidMarket(String),
-    /// An exchange code was not accepted by the endpoint.
-    #[error("unsupported SSI exchange {0}")]
-    InvalidExchange(String),
     /// A date was not a valid exact-width DD/MM/YYYY calendar date.
     #[error("request field {0} must be a valid DD/MM/YYYY date")]
     InvalidDate(&'static str),
@@ -32,9 +26,6 @@ pub enum ValidationError {
     /// A request date range exceeded the endpoint limit.
     #[error("date range must not exceed {0} calendar days")]
     DateRangeTooLong(u32),
-    /// Daily index ordering was neither ascending nor descending.
-    #[error("order must be asc or desc, received {0}")]
-    InvalidOrder(String),
     /// Intraday aggregation resolution was outside the supported range.
     #[error("resolution must be between 1 and 1440 minutes, received {0}")]
     InvalidResolution(u16),

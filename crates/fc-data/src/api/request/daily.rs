@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use super::{PageQuery, SsiDate, ValidationError, validation as validate};
+use super::{Market, OrderDirection, PageQuery, SsiDate, ValidationError, validation as validate};
 
 pub(super) const DAILY_INDEX_PATH: &str = "api/v2/Market/DailyIndex";
 pub(super) const DAILY_STOCK_PRICE_PATH: &str = "api/v2/Market/DailyStockPrice";
@@ -21,7 +21,7 @@ pub struct DailyIndexInput {
     /// Server-side ordering field.
     pub order_by: String,
     /// Server-side ordering direction.
-    pub order: String,
+    pub order: OrderDirection,
 }
 
 /// Daily index input with the official .NET ascending flag.
@@ -44,7 +44,7 @@ pub struct DailyIndexQuery {
     #[serde(flatten)]
     page: PageQuery,
     order_by: String,
-    order: String,
+    order: OrderDirection,
     ascending: bool,
 }
 
@@ -64,7 +64,6 @@ impl DailyIndexQuery {
         let from_date = validate::date(&input.from_date, "fromDate")?;
         let to_date = validate::date(&input.to_date, "toDate")?;
         validate::required(&input.order_by, "orderBy")?;
-        validate::order(&input.order)?;
         Ok(Self {
             request_id: input.request_id,
             index_id: input.index_id,
@@ -90,7 +89,7 @@ pub struct DailyStockPriceInput {
     /// Validated pagination.
     pub page: PageQuery,
     /// Optional SSI market code.
-    pub market: Option<String>,
+    pub market: Option<Market>,
 }
 
 /// Daily stock price request.
@@ -104,7 +103,7 @@ pub struct DailyStockPriceQuery {
     #[serde(flatten)]
     page: PageQuery,
     #[serde(skip_serializing_if = "Option::is_none")]
-    market: Option<String>,
+    market: Option<Market>,
 }
 
 impl DailyStockPriceQuery {
@@ -113,7 +112,6 @@ impl DailyStockPriceQuery {
         validate::optional(input.symbol.as_deref(), "symbol")?;
         let from_date = validate::date(&input.from_date, "fromDate")?;
         let to_date = validate::date(&input.to_date, "toDate")?;
-        validate::market(input.market.as_deref())?;
         validate::stock_page_size(input.page.page_size)?;
         Ok(Self {
             symbol: input.symbol,

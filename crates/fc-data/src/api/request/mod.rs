@@ -15,6 +15,7 @@ mod date;
 mod intraday_tick;
 mod ohlc;
 mod reference;
+mod types;
 mod validation;
 
 pub use backtest::BacktestQuery;
@@ -30,6 +31,7 @@ pub use ohlc::{
 pub use reference::{
     IndexComponentsQuery, IndexListQuery, SecuritiesDetailsQuery, SecuritiesQuery,
 };
+pub use types::{IndexExchange, Market, OrderDirection, SecuritiesMarket};
 
 use backtest::BACKTEST_PATH;
 use common::build_url;

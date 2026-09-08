@@ -563,6 +563,7 @@ dependencies = [
  "clap",
  "color-eyre",
  "predicates",
+ "serde",
  "serde_json",
  "ssi-fc-data",
  "thiserror",

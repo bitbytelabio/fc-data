@@ -423,6 +423,195 @@ fn securities_status_accepts_missing_odd_lot_session() -> Result<(), Box<dyn std
     );
     Ok(())
 }
+#[test]
+fn quote_accepts_spec_3_2_example_with_string_vols_trading_time_no_session_and_ask_prie9()
+-> Result<(), Box<dyn std::error::Error>> {
+    // Example from §3.2 with string volumes, TradingTime, no session, AskPrie9 typo.
+    let mut map = Map::new();
+    map.insert("RType".to_owned(), json!("Quote"));
+    map.insert("TradingDate".to_owned(), json!("06/04/2021"));
+    map.insert("TradingTime".to_owned(), json!("08:54:52"));
+    map.insert("Exchange".to_owned(), json!("DERIVATIVES"));
+    map.insert("Symbol".to_owned(), json!("VN30F2104"));
+    map.insert("StockNo".to_owned(), json!("1138"));
+
+    let ask_prices = [
+        0.0, 1252.0, 1254.0, 1257.0, 1257.5, 1258.6, 1259.0, 1259.4, 1259.5, 1259.8,
+    ];
+    let ask_vols = ["140", "1", "1", "6", "20", "10", "8", "2", "6", "2"];
+    let bid_prices = [
+        0.0, 1344.9, 1265.0, 1261.4, 1260.0, 1259.9, 1259.8, 1259.7, 1259.6, 1259.5,
+    ];
+    let bid_vols = ["0", "1", "1", "2", "1", "2", "2", "1", "10", "1"];
+
+    for (idx, (((ask_price, ask_vol), bid_price), bid_vol)) in ask_prices
+        .into_iter()
+        .zip(ask_vols)
+        .zip(bid_prices)
+        .zip(bid_vols)
+        .enumerate()
+    {
+        let level = idx + 1;
+        let ask_key = if level == 9 {
+            "AskPrie9".to_owned()
+        } else {
+            format!("AskPrice{level}")
+        };
+        map.insert(ask_key, json!(ask_price));
+        map.insert(format!("AskVol{level}"), json!(ask_vol));
+        map.insert(format!("BidPrice{level}"), json!(bid_price));
+        map.insert(format!("BidVol{level}"), json!(bid_vol));
+    }
+
+    let content = Value::Object(map);
+    let envelope = envelope("Quote", &content);
+
+    // When
+    let message = StreamMessage::try_from(envelope)?;
+
+    // Then
+    let StreamMessage::Quote(q) = message else {
+        return Err(io::Error::other("expected Quote variant").into());
+    };
+    assert_eq!(q.trading_date, "06/04/2021");
+    assert_eq!(q.time, "08:54:52");
+    assert_eq!(q.exchange, "DERIVATIVES");
+    assert_eq!(q.symbol, "VN30F2104");
+    assert_eq!(q.stock_no.as_deref(), Some("1138"));
+    assert_eq!(q.trading_session, None);
+    assert!(
+        q.ask_prices
+            .get(8)
+            .is_some_and(|p| (*p - 1259.5).abs() < f64::EPSILON)
+    );
+    assert!(
+        q.ask_volumes
+            .first()
+            .is_some_and(|v| (*v - 140.0).abs() < f64::EPSILON)
+    );
+    assert!(
+        q.ask_volumes
+            .get(1)
+            .is_some_and(|v| (*v - 1.0).abs() < f64::EPSILON)
+    );
+    assert!(
+        q.ask_volumes
+            .get(4)
+            .is_some_and(|v| (*v - 20.0).abs() < f64::EPSILON)
+    );
+    assert!(
+        q.bid_volumes
+            .first()
+            .is_some_and(|v| (*v - 0.0).abs() < f64::EPSILON)
+    );
+    assert!(
+        q.bid_volumes
+            .get(8)
+            .is_some_and(|v| (*v - 10.0).abs() < f64::EPSILON)
+    );
+    Ok(())
+}
+
+#[test]
+fn realtime_bar_accepts_spec_3_5_example_with_trading_time_and_no_trading_date()
+-> Result<(), Box<dyn std::error::Error>> {
+    // Example from §3.5 of the SSI spec.
+    let content = json!({
+        "RType": "B",
+        "Symbol": "X26",
+        "TradingTime": "14:28:33",
+        "Open": 16_000.0,
+        "High": 16_000.0,
+        "Low": 16_000.0,
+        "Close": 16_000.0,
+        "Volume": 5_000.0,
+        "Value": 0.0,
+    });
+    let envelope = envelope("B", &content);
+
+    // When
+    let message = StreamMessage::try_from(envelope)?;
+
+    // Then
+    let StreamMessage::Bar(bar) = message else {
+        return Err(io::Error::other("expected Bar variant").into());
+    };
+    assert_eq!(bar.symbol, "X26");
+    assert_eq!(bar.time, "14:28:33");
+    assert_eq!(bar.trading_date, None);
+    assert!((bar.open - 16_000.0).abs() < f64::EPSILON);
+    assert!((bar.volume - 5_000.0).abs() < f64::EPSILON);
+    assert!((bar.value - 0.0).abs() < f64::EPSILON);
+    Ok(())
+}
+
+#[test]
+fn foreign_room_accepts_null_or_missing_isin_and_casing_aliases()
+-> Result<(), Box<dyn std::error::Error>> {
+    let content_null_isin = json!({
+        "RType": "R",
+        "TradingDate": "14/08/2026",
+        "Time": "15:32:00",
+        "ISIN": null,
+        "Symbol": "SSI",
+        "TotalRoom": 2_503_089_220.0,
+        "CurrentRoom": 1_741_403_260.0,
+        "BuyVol": 0.0,
+        "SellVol": 0.0,
+        "BuyVal": 0.0,
+        "SellVal": 0.0,
+        "MarketId": "HOSE",
+        "Exchange": "HOSE"
+    });
+    let msg1 = StreamMessage::try_from(envelope("R", &content_null_isin))?;
+    let StreamMessage::ForeignRoom(room1) = msg1 else {
+        return Err(io::Error::other("expected ForeignRoom variant").into());
+    };
+    assert_eq!(room1.isin, None);
+    assert_eq!(room1.symbol, "SSI");
+
+    let content_missing_isin = json!({
+        "RType": "R",
+        "TradingDate": "14/08/2026",
+        "Time": "15:32:00",
+        "Symbol": "SSI",
+        "TotalRoom": 2_503_089_220.0,
+        "CurrentRoom": 1_741_403_260.0,
+        "BuyVol": 0.0,
+        "SellVol": 0.0,
+        "BuyVal": 0.0,
+        "SellVal": 0.0,
+        "MarketId": "HOSE",
+        "Exchange": "HOSE"
+    });
+    let msg2 = StreamMessage::try_from(envelope("R", &content_missing_isin))?;
+    let StreamMessage::ForeignRoom(room2) = msg2 else {
+        return Err(io::Error::other("expected ForeignRoom variant").into());
+    };
+    assert_eq!(room2.isin, None);
+    assert_eq!(room2.symbol, "SSI");
+    Ok(())
+}
+
+#[test]
+fn quote_volume_rejects_malformed_and_non_finite_strings() -> Result<(), Box<dyn std::error::Error>>
+{
+    let assert_rejected = |invalid_vol: &str| -> Result<(), Box<dyn std::error::Error>> {
+        let mut content = quote_content();
+        let object = content
+            .as_object_mut()
+            .ok_or_else(|| io::Error::other("expected object"))?;
+        object.insert("AskVol1".to_owned(), json!(invalid_vol));
+        let message_envelope = envelope("X-QUOTE", &content);
+        assert!(StreamMessage::try_from(message_envelope).is_err());
+        Ok(())
+    };
+
+    assert_rejected("not_a_number")?;
+    assert_rejected("NaN")?;
+    assert_rejected("Infinity")?;
+    Ok(())
+}
 
 #[tokio::test]
 async fn typed_bounded_collect_decodes_messages() -> TestResult {

@@ -2,6 +2,7 @@
 
 use std::{io::Write as _, time::Duration};
 
+use serde::Serialize;
 use serde_json::Value;
 use thiserror::Error;
 
@@ -48,50 +49,55 @@ pub(super) enum RunError {
 /// Executes a parsed command without exposing credentials or access tokens.
 pub(super) async fn run(cli: Cli) -> Result<(), RunError> {
     let client = MarketDataClient::new(Settings::load()?)?;
-    let output = match cli.command {
+    match cli.command {
         Command::Auth => {
             client.authenticate().await?;
-            serde_json::json!({"authenticated": true})
+            write_json(&serde_json::json!({"authenticated": true}))
         }
         Command::Securities(args) => {
-            execute_typed(&client, SecuritiesQuery::try_from(args)?).await?
+            execute_typed(&client, &SecuritiesQuery::try_from(args)?).await
         }
         Command::SecuritiesDetails(args) => {
-            execute_typed(&client, SecuritiesDetailsQuery::try_from(args)?).await?
+            execute_typed(&client, &SecuritiesDetailsQuery::try_from(args)?).await
         }
         Command::IndexComponents(args) => {
-            execute_typed(&client, IndexComponentsQuery::try_from(args)?).await?
+            execute_typed(&client, &IndexComponentsQuery::try_from(args)?).await
         }
-        Command::IndexList(args) => execute_typed(&client, IndexListQuery::try_from(args)?).await?,
-        Command::DailyOhlc(args) => execute_typed(&client, DailyOhlcQuery::try_from(args)?).await?,
+        Command::IndexList(args) => execute_typed(&client, &IndexListQuery::try_from(args)?).await,
+        Command::DailyOhlc(args) => execute_typed(&client, &DailyOhlcQuery::try_from(args)?).await,
         Command::IntradayOhlc(args) => {
-            execute_typed(&client, IntradayOhlcQuery::try_from(args)?).await?
+            execute_typed(&client, &IntradayOhlcQuery::try_from(args)?).await
         }
         Command::IntradayByTick(args) => {
-            execute_typed(&client, IntradayByTickQuery::try_from(args)?).await?
+            execute_typed(&client, &IntradayByTickQuery::try_from(args)?).await
         }
         Command::DailyIndex(args) => {
-            execute_typed(&client, DailyIndexQuery::try_from(args)?).await?
+            execute_typed(&client, &DailyIndexQuery::try_from(args)?).await
         }
         Command::DailyStockPrice(args) => {
-            execute_typed(&client, DailyStockPriceQuery::try_from(args)?).await?
+            execute_typed(&client, &DailyStockPriceQuery::try_from(args)?).await
         }
-        Command::Backtest(args) => execute_raw(&client, args.try_into()?).await?,
-        Command::Stream(args) => execute_stream(&client, args).await?,
-    };
-    write_json(&output)
+        Command::Backtest(args) => {
+            let output = execute_raw(&client, args.try_into()?).await?;
+            write_json(&output)
+        }
+        Command::Stream(args) => {
+            let output = execute_stream(&client, args).await?;
+            write_json(&output)
+        }
+    }
 }
 
 async fn execute_raw(client: &MarketDataClient, request: ApiRequest) -> Result<Value, ClientError> {
     client.execute(&request).await
 }
 
-async fn execute_typed<R>(client: &MarketDataClient, request: R) -> Result<Value, RunError>
+async fn execute_typed<R>(client: &MarketDataClient, request: &R) -> Result<(), RunError>
 where
     R: RestRequest,
 {
-    let response = client.execute_typed(&request).await?;
-    Ok(serde_json::to_value(response)?)
+    let response = client.execute_typed(request).await?;
+    write_json(&response)
 }
 
 async fn execute_stream(client: &MarketDataClient, args: StreamArgs) -> Result<Value, StreamError> {
@@ -104,7 +110,7 @@ async fn execute_stream(client: &MarketDataClient, args: StreamArgs) -> Result<V
     Ok(Value::Array(payloads))
 }
 
-fn write_json(value: &Value) -> Result<(), RunError> {
+fn write_json<T: Serialize + ?Sized>(value: &T) -> Result<(), RunError> {
     let stdout = std::io::stdout();
     let mut lock = stdout.lock();
     serde_json::to_writer_pretty(&mut lock, value)?;
@@ -132,10 +138,7 @@ impl TryFrom<SecuritiesArgs> for SecuritiesQuery {
     type Error = ValidationError;
 
     fn try_from(args: SecuritiesArgs) -> Result<Self, Self::Error> {
-        Self::new(
-            args.market.map(|market| market.as_str().to_owned()),
-            args.page.try_into()?,
-        )
+        Self::new(args.market.map(Into::into), args.page.try_into()?)
     }
 }
 
@@ -144,7 +147,7 @@ impl TryFrom<SecuritiesDetailsArgs> for SecuritiesDetailsQuery {
 
     fn try_from(args: SecuritiesDetailsArgs) -> Result<Self, Self::Error> {
         Self::new(
-            args.market.map(|market| market.as_str().to_owned()),
+            args.market.map(Into::into),
             args.symbol,
             args.page.try_into()?,
         )
@@ -163,10 +166,10 @@ impl TryFrom<IndexListArgs> for IndexListQuery {
     type Error = ValidationError;
 
     fn try_from(args: IndexListArgs) -> Result<Self, Self::Error> {
-        Self::new(
-            args.exchange.map(|market| market.as_str().to_owned()),
+        Ok(Self::new(
+            args.exchange.map(Into::into),
             args.page.try_into()?,
-        )
+        ))
     }
 }
 
@@ -224,7 +227,7 @@ impl TryFrom<DailyIndexArgs> for DailyIndexQuery {
                 to_date: args.to_date,
                 page: args.page.try_into()?,
                 order_by: args.order_by,
-                order: args.order.as_str().to_owned(),
+                order: args.order.into(),
             },
             ascending: args.ascending,
         })
@@ -241,7 +244,7 @@ impl TryFrom<DailyStockPriceArgs> for DailyStockPriceQuery {
             from_date: args.from_date,
             to_date: args.to_date,
             page,
-            market: args.market.map(|market| market.as_str().to_owned()),
+            market: args.market.map(Into::into),
         })
     }
 }

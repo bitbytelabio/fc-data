@@ -73,10 +73,9 @@ pub(super) enum SecuritiesMarket {
     /// Derivatives market.
     Der,
 }
-
 /// Exchange filter accepted by the index-list endpoint.
 #[derive(Debug, Clone, Copy, ValueEnum)]
-pub(super) enum Exchange {
+pub(super) enum IndexExchange {
     /// Ho Chi Minh Stock Exchange.
     Hose,
     /// Hanoi Stock Exchange.
@@ -85,13 +84,12 @@ pub(super) enum Exchange {
 
 /// Sort direction accepted by SSI.
 #[derive(Debug, Clone, Copy, ValueEnum)]
-pub(super) enum Order {
+pub(super) enum OrderDirection {
     /// Ascending order.
     Asc,
     /// Descending order.
     Desc,
 }
-
 /// Shared pagination flags.
 #[derive(Debug, Clone, Copy, Args)]
 pub(super) struct PageArgs {
@@ -130,8 +128,7 @@ pub(super) struct SecuritiesArgs {
 pub(super) struct SecuritiesDetailsArgs {
     /// Optional market filter.
     #[arg(long, value_enum, ignore_case = true)]
-    pub(super) market: Option<Market>,
-    /// Optional instrument symbol.
+    pub(super) market: Option<SecuritiesMarket>,
     #[arg(long)]
     pub(super) symbol: Option<String>,
     /// Pagination flags.
@@ -155,7 +152,7 @@ pub(super) struct IndexComponentsArgs {
 pub(super) struct IndexListArgs {
     /// Optional exchange filter.
     #[arg(long, value_enum, ignore_case = true)]
-    pub(super) exchange: Option<Exchange>,
+    pub(super) exchange: Option<IndexExchange>,
     /// Pagination flags.
     #[command(flatten)]
     pub(super) page: PageArgs,
@@ -243,8 +240,8 @@ pub(super) struct DailyIndexArgs {
     #[arg(long, default_value = "TradingDate")]
     pub(super) order_by: String,
     /// SSI ordering direction.
-    #[arg(long, value_enum, ignore_case = true, default_value_t = Order::Desc)]
-    pub(super) order: Order,
+    #[arg(long, value_enum, ignore_case = true, default_value_t = OrderDirection::Desc)]
+    pub(super) order: OrderDirection,
     /// Return records in ascending order.
     #[arg(long, default_value_t = false, action = clap::ArgAction::Set)]
     pub(super) ascending: bool,
@@ -301,47 +298,46 @@ pub(super) struct StreamArgs {
     pub(super) timeout_seconds: u64,
 }
 
-impl Market {
-    pub(super) const fn as_str(self) -> &'static str {
-        match self {
-            Self::Hose => "HOSE",
-            Self::Hnx => "HNX",
-            Self::Upcom => "UPCOM",
-            Self::Der => "DER",
-            Self::Bond => "BOND",
+impl From<Market> for ssi_fc_data::api::Market {
+    fn from(market: Market) -> Self {
+        match market {
+            Market::Hose => Self::Hose,
+            Market::Hnx => Self::Hnx,
+            Market::Upcom => Self::Upcom,
+            Market::Der => Self::Der,
+            Market::Bond => Self::Bond,
         }
     }
 }
 
-impl SecuritiesMarket {
-    pub(super) const fn as_str(self) -> &'static str {
-        match self {
-            Self::Hose => "HOSE",
-            Self::Hnx => "HNX",
-            Self::Upcom => "UPCOM",
-            Self::Der => "DER",
+impl From<SecuritiesMarket> for ssi_fc_data::api::SecuritiesMarket {
+    fn from(market: SecuritiesMarket) -> Self {
+        match market {
+            SecuritiesMarket::Hose => Self::Hose,
+            SecuritiesMarket::Hnx => Self::Hnx,
+            SecuritiesMarket::Upcom => Self::Upcom,
+            SecuritiesMarket::Der => Self::Der,
         }
     }
 }
 
-impl Exchange {
-    pub(super) const fn as_str(self) -> &'static str {
-        match self {
-            Self::Hose => "HOSE",
-            Self::Hnx => "HNX",
+impl From<IndexExchange> for ssi_fc_data::api::IndexExchange {
+    fn from(exchange: IndexExchange) -> Self {
+        match exchange {
+            IndexExchange::Hose => Self::Hose,
+            IndexExchange::Hnx => Self::Hnx,
         }
     }
 }
 
-impl Order {
-    pub(super) const fn as_str(self) -> &'static str {
-        match self {
-            Self::Asc => "asc",
-            Self::Desc => "desc",
+impl From<OrderDirection> for ssi_fc_data::api::OrderDirection {
+    fn from(order: OrderDirection) -> Self {
+        match order {
+            OrderDirection::Asc => Self::Asc,
+            OrderDirection::Desc => Self::Desc,
         }
     }
 }
-
 fn parse_page_size(value: &str) -> Result<u16, String> {
     parse_size(value, &[10, 20, 50, 100, 500, 1000])
 }

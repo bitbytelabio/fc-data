@@ -93,9 +93,9 @@ pub struct ForeignRoom {
     pub trading_date: String,
     /// Broadcast time.
     pub time: String,
-    /// ISIN or SSI instrument identifier.
-    #[serde(alias = "ISIN", alias = "ISin")]
-    pub isin: String,
+    /// ISIN or SSI instrument identifier when supplied.
+    #[serde(default, alias = "ISIN", alias = "ISin", alias = "isin")]
+    pub isin: Option<String>,
     /// Security symbol.
     pub symbol: String,
     /// Total foreign room.
@@ -190,8 +190,9 @@ pub struct RealtimeBar {
     /// Wire record type.
     #[serde(alias = "Rtype")]
     pub r_type: String,
-    /// Trading date.
-    pub trading_date: String,
+    /// Trading date when supplied.
+    #[serde(default, alias = "TradingDate", alias = "tradingdate")]
+    pub trading_date: Option<String>,
     /// Broadcast time.
     #[serde(alias = "TradingTime")]
     pub time: String,
@@ -208,5 +209,6 @@ pub struct RealtimeBar {
     /// Latest matched volume.
     pub volume: f64,
     /// Latest matched value.
+    #[serde(default)]
     pub value: f64,
 }

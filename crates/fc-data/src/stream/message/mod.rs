@@ -1,5 +1,6 @@
 //! Typed SSI stream envelopes and payloads.
 
+mod de;
 mod models;
 mod quote;
 

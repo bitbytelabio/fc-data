@@ -3,7 +3,8 @@
 use ssi_fc_data::{
     api::{
         ApiRequest, BacktestQuery, DailyIndexInput, DailyIndexQuery, IntradayOhlcInput,
-        IntradayOhlcQuery, MarketDataClient, PageQuery, SecuritiesQuery,
+        IntradayOhlcQuery, MarketDataClient, OrderDirection, PageQuery, SecuritiesMarket,
+        SecuritiesQuery,
     },
     config::{Settings, SettingsInput, TransportPolicy},
     stream::{StreamError, broadcast_payloads, switch_channels_frame},
@@ -70,7 +71,7 @@ fn rejects_cleartext_transport_by_default() {
 fn uses_flat_query_keys_when_building_a_securities_request() {
     // Given
     let page = PageQuery::new(1, 10).expect("valid page");
-    let query = SecuritiesQuery::new(Some("HOSE".to_owned()), page).expect("valid query");
+    let query = SecuritiesQuery::new(Some(SecuritiesMarket::Hose), page).expect("valid query");
     let request = ApiRequest::Securities(query);
     let base = Url::parse("https://fc-data.ssi.com.vn/").expect("valid fixture URL");
 
@@ -121,7 +122,7 @@ fn preserves_official_python_keys_when_building_a_daily_index_request() {
         to_date: "14/08/2026".to_owned(),
         page,
         order_by: "TradingDate".to_owned(),
-        order: "desc".to_owned(),
+        order: OrderDirection::Desc,
     })
     .expect("valid query");
     let request = ApiRequest::DailyIndex(query);
